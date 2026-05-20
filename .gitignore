@@ -1,0 +1,10 @@
+.env
+*.db
+*.log
+__pycache__/
+*.pyc
+voice_cache/
+test_*.py
+arinasik_bot.py
+legend_bot.py
+legend_bot_fixed.py
