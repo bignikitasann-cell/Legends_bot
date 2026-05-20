@@ -4,67 +4,61 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Загружаем переменные окружения
 load_dotenv()
-
-# Получаем токен
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- Команда /start ---
+# --- Команды ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
+    logger.info("Команда /start получена и обрабатывается")
     await update.message.reply_text(
-        f"✨ Привет, {user.first_name}! Я - **Легенда**.\n\n"
-        "Я - твой персональный ассистент.\n\n"
-        "🌤️ *Примеры запросов:*\n"
-        "• `погода Москва`\n"
-        "• `найди новости про ИИ`",
+        "✅ Привет! Я - **Легенда**.\n\n"
+        "Бот успешно запущен на сервере Render.\n"
+        "Вебхук настроен и работает.",
         parse_mode="Markdown"
     )
 
-# --- Команда /help ---
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🤖 *Доступные команды:*\n\n"
-        "/start - Приветствие\n"
-        "/help - Это сообщение\n"
-        "/status - Статус бота",
-        parse_mode="Markdown"
-    )
+    await update.message.reply_text("📋 Доступные команды:\n/start - приветствие\n/help - помощь")
 
-# --- Команда /status ---
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "✅ Бот успешно запущен на сервере Render!\n"
-        "🟢 Статус: Активен\n"
-        "📡 Тип подключения: Webhook\n"
-        "⚙️ Версия: Production Ready"
-    )
+    await update.message.reply_text("🟢 Бот активен и работает через Webhook!")
 
-# --- Главная функция запуска ---
+# --- Запуск ---
 def main():
-    # Создаем приложение
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    if not TELEGRAM_TOKEN:
+        logger.error("Токен не найден!")
+        return
 
-    # Регистрируем обработчики команд
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("status", status_command))
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    # Получаем порт и хост от Render
-    port = int(os.environ.get('PORT', 8080))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("status", status_command))
 
-    # Запускаем бота в режиме webhook, УКАЗЫВАЯ url_path
-    # Это заставит бота слушать адрес: твой-URL/ТОКЕН
-    application.run_webhook(
+    port = int(os.environ.get("PORT", 8080))
+    host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+
+    if not host:
+        logger.error("RENDER_EXTERNAL_HOSTNAME не установлен!")
+        return
+
+    # КЛЮЧЕВОЙ МОМЕНТ: путь, по которому бот слушает Telegram
+    webhook_path = TELEGRAM_TOKEN
+    webhook_url = f"https://{host}/{webhook_path}"
+
+    logger.info(f"Запуск на порту: {port}")
+    logger.info(f"Путь для вебхука: {webhook_path}")
+    logger.info(f"Полный URL вебхука: {webhook_url}")
+
+    # Параметр url_path заставляет бота слушать нужный адрес
+    app.run_webhook(
         listen="0.0.0.0",
         port=port,
-        url_path=TELEGRAM_TOKEN,  # <--- ЭТО САМОЕ ВАЖНОЕ!
-        webhook_url=f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/{TELEGRAM_TOKEN}"
+        url_path=webhook_path,
+        webhook_url=webhook_url
     )
 
 if __name__ == "__main__":
